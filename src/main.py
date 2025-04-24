@@ -75,17 +75,40 @@ def overlay_text_on_video(video_path, final_audio_clip):
         # Split translation into 5-second chunks
         translations = split_text_into_chunks(translation, 5)  # Assuming 120 words per minute
 
-        clips = []
-        start_time = 0.0
+        # Extract start and end times of each segment in the video
+        video_start_time = video_clip.start
+        video_end_time = video_clip.end
 
-        for text in translations:
-            txt_clip = TextClip(text, fontsize=24, color='white', font='Arial-Bold')
-            txt_clip = txt_clip.set_position(('center', 'bottom')).set_duration(5)
-            txt_clip = txt_clip.set_start(start_time)
-            clips.append(txt_clip)
-            start_time += 5
+        # Calculate the number of seconds in the video
+        total_video_duration = video_end_time - video_start_time
 
-        final_video = CompositeVideoClip([video_clip] + clips)
+        # Create a list to store text clips with their corresponding start and end times
+        text_clips = []
+
+        for i, text_chunk in enumerate(translations):
+            # Calculate the start time for this chunk
+            start_time_seconds = (i * 5) / total_video_duration
+            # Ensure the start time is within the video bounds
+            start_time_seconds = max(0, min(start_time_seconds, 1))
+
+            # Create a TextClip with the text and position it at the bottom center
+            txt_clip = TextClip(text_chunk, fontsize=24, color='white', font='Arial-Bold')
+            txt_clip = txt_clip.set_position(('center', 'bottom'))
+
+            # Calculate the end time for this chunk
+            end_time_seconds = ((i + 1) * 5) / total_video_duration
+            # Ensure the end time is within the video bounds
+            end_time_seconds = max(0, min(end_time_seconds, 1))
+
+            # Set the duration and start/end times for the text clip
+            txt_clip = txt_clip.set_duration(end_time_seconds - start_time_seconds)
+            txt_clip = txt_clip.set_start(start_time_seconds)
+
+            # Append the text clip to the list
+            text_clips.append(txt_clip)
+
+        # Create a CompositeVideoClip with the video and the text clips
+        final_video = CompositeVideoClip([video_clip] + text_clips)
         return final_video.set_audio(final_audio_clip)
     except Exception as e:
         print(f"Error overlaying text on video: {e}")
@@ -133,5 +156,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
