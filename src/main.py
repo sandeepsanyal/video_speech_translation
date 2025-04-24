@@ -1,14 +1,12 @@
+import os
 import threading
 from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip, TextClip
 from pydub import AudioSegment
-import faster_whisper
+from faster_whisper import WhisperModel
 from googletrans import Translator
 import asyncio
 import time
 from gtts import gTTS
-# Ensure output directory exists
-if not os.path.exists("output"):
-    os.makedirs("output")
 
 def extract_audio_from_video(video_path):
     try:
@@ -22,7 +20,7 @@ def extract_audio_from_video(video_path):
 def transcribe_audio_worker():
     try:
         model_size = "base"  # You can choose other models like "tiny", "small", "medium", "large"
-        model = faster_whisper.Whisper(model_size)
+        model = WhisperModel(model_size, device="cpu")
         segments, info = model.transcribe("output/audio.wav", language="en")
 
         transcription = ""
@@ -42,12 +40,22 @@ async def translate_text():
             transcription = file.read()
 
         # Use asyncio to handle the coroutine
-        translation = await translator.translate(transcription, src='en', dest='es')
+        translation = await translator.translate(transcription, src='en', dest='hi')
         with open('output/translation.txt', 'w') as file:
             file.write(translation.text)
         print("Text translated.")
     except Exception as e:
         print(f"Error translating text: {e}")
+
+def translate_text_to_audio(text_file_path):
+    try:
+        with open(text_file_path, 'r') as file:
+            translation = file.read()
+        tts = gTTS(translation, lang='hi')
+        tts.save("output/translated_audio.mp3")
+        return AudioSegment.from_mp3("output/translated_audio.mp3")
+    except Exception as e:
+        print(f"Error translating text to audio: {e}")
 
 def generate_combined_audio(video_clip):
     try:
@@ -57,16 +65,6 @@ def generate_combined_audio(video_clip):
         return AudioFileClip("output/translated_audio.wav")
     except Exception as e:
         print(f"Error generating combined audio: {e}")
-
-def translate_text_to_audio(text_file_path):
-    try:
-        with open(text_file_path, 'r') as file:
-            translation = file.read()
-        tts = gTTS(translation, lang='es')
-        tts.save("output/translated_audio.wav")
-        return AudioSegment.from_wav("output/translated_audio.wav")
-    except Exception as e:
-        print(f"Error translating text to audio: {e}")
 
 def overlay_text_on_video(video_path, final_audio_clip):
     try:
@@ -135,3 +133,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
